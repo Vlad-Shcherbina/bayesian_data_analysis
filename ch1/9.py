@@ -1,5 +1,9 @@
+from __future__ import division
 import logging
 import random
+
+import matplotlib.pyplot as plt
+
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +93,7 @@ class Simulator(object):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
 
     s = Simulator(0, 7 * 60, prng=random.Random(42))
     s.run()
@@ -100,7 +104,62 @@ def main():
         print 'their average wait: {:.2f}m'.format(
             s.total_wait_time / s.num_waiting_patients)
     print 'office closed {:.2f}m after it stopped admitting patients'.format(
-        s.time - s.end_time)
+        max(0, s.time - s.end_time))
+
+    # Run multiple simulations.
+
+    num_patients_distribution = []
+    num_waiting_patients_distribution = []
+    average_wait_distribution = []
+    close_time_distribution = []
+    for i in range(1000):
+        s = Simulator(0, 7 * 60, prng=random.Random(42 + i))
+        s.run()
+        num_patients_distribution.append(s.num_patients)
+        num_waiting_patients_distribution.append(s.num_waiting_patients)
+        if s.num_waiting_patients:
+            average_wait_distribution.append(
+                s.total_wait_time / s.num_waiting_patients)
+        else:
+            average_wait_distribution.append(0)
+        close_time_distribution.append(max(0, s.time - s.end_time))
+
+    plt.subplot(221)
+    plt.title('number of patients')
+    plot_distribution(num_patients_distribution)
+
+    plt.subplot(222)
+    plt.title('number of waiting patients')
+    plot_distribution(num_waiting_patients_distribution)
+
+    plt.subplot(223)
+    plt.title('average wait time')
+    plot_distribution(average_wait_distribution)
+
+    plt.subplot(224)
+    plt.title('close time')
+    plot_distribution(close_time_distribution)
+
+    plt.show()
+
+
+def plot_distribution(distribution):
+    distribution.sort()
+    plt.hist(distribution)
+    plot_height = plt.ylim()[1]
+    n = len(distribution)
+    plt.plot(
+        [distribution[i * n // 4] for i in range(1, 4)],
+        [0.99 * plot_height] * 3,
+        'ko-')
+
+    # Find shortest 50% interval.
+    intervals = zip(distribution[:n//2], distribution[n//2:])
+    shortest = min(intervals, key=lambda(a, b): b - a)
+    plt.plot(
+        shortest,
+        [0.95 * plot_height] * 2,
+        'go-')
 
 
 if __name__ == '__main__':
